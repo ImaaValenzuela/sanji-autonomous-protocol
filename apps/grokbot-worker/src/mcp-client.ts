@@ -126,7 +126,7 @@ export class SanjiMcpClient {
               recipient: params.recipient,
               amountLamports: params.amountLamports,
               memo: params.memo,
-              skill: params.skill ?? "sanji_caba_lead_enricher",
+              skill: params.skill ?? "sanji_global_lead_enricher",
             },
           }),
           20_000,

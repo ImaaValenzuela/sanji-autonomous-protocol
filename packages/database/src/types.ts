@@ -5,13 +5,11 @@ export type LeadStatus =
   | "PAID_CORE"
   | "DEPLOYED";
 
-export type Neighborhood =
-  | "Palermo"
-  | "Chacarita"
-  | "Belgrano"
-  | "Villa Crespo"
-  | "Recoleta"
-  | string;
+export type Region = "NA" | "EU" | "LATAM";
+
+export type LeadLanguage = "en" | "es" | "pt" | "fr" | "it";
+
+export type PriceTier = "$$" | "$$$" | "$$$$";
 
 export interface MenuHighlight {
   name: string;
@@ -23,12 +21,18 @@ export interface RestaurantLead {
   id: string;
   slug: string;
   name: string;
-  neighborhood: Neighborhood;
+  city: string;
+  country: string;
+  region: Region;
+  language: LeadLanguage;
+  price_tier: PriceTier;
   owner_name: string;
   owner_phone: string;
   ig_handle: string;
   specialty: string;
   google_rating: number;
+  review_count: number;
+  hot_lead_score: number;
   pain_point: string;
   hero_image_url: string;
   menu_highlights: MenuHighlight[];
@@ -54,3 +58,10 @@ export interface CommandSnapshot {
 }
 
 export type PaidStatus = Extract<LeadStatus, "PAID_EXPRESS" | "PAID_CORE">;
+
+export interface ScoutFilter {
+  region?: Region;
+  city?: string;
+  country?: string;
+  language?: LeadLanguage;
+}

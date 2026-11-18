@@ -11,6 +11,7 @@ interface ChallengeBody {
   memo?: string;
   skill?: string;
   message?: string;
+  error?: string;
 }
 
 interface UnlockBody {
@@ -36,8 +37,8 @@ async function runCycle(client: SanjiMcpClient): Promise<void> {
     log.detail(`ClawPump tools: ${tools.join(", ")}`);
   }
 
-  const endpoint = `${gatewayUrl()}/api/x402/leads/caba`;
-  log.scout("Requesting CABA lead from /api/x402/leads/caba...");
+  const endpoint = `${gatewayUrl()}/api/x402/leads/global`;
+  log.scout("Requesting global hot lead from /api/x402/leads/global...");
 
   let challenge;
   try {
@@ -50,13 +51,17 @@ async function runCycle(client: SanjiMcpClient): Promise<void> {
     throw new Error(`Gateway is not up at ${gatewayUrl()} (${message}). Start it with pnpm dev.`);
   }
 
+  if (challenge.status === 400) {
+    throw new Error(challenge.data.error ?? "Gateway rejected the territory.");
+  }
+
   if (challenge.status !== 402) {
     throw new Error(`Expected HTTP 402 from the paywall, received ${challenge.status}.`);
   }
 
   const amount = Number(challenge.data.amountLamports ?? 500_000);
   const recipient = challenge.data.recipient ?? process.env.SANJI_TREASURY_PUBLIC_KEY ?? "";
-  const memo = challenge.data.memo ?? `SANJI_CABA_LEAD_${Date.now()}`;
+  const memo = challenge.data.memo ?? `SANJI_GLOBAL_LEAD_${Date.now()}`;
   log.x402(
     `Received HTTP 402 Payment Required (${lamportsLabel(amount)} lamports). Executing x402_pay from Sanji Agent Wallet...`,
   );
@@ -65,7 +70,7 @@ async function runCycle(client: SanjiMcpClient): Promise<void> {
     recipient,
     amountLamports: amount,
     memo,
-    skill: challenge.data.skill ?? "sanji_caba_lead_enricher",
+    skill: challenge.data.skill ?? "sanji_global_lead_enricher",
   });
 
   if (payment.simulated) {
@@ -99,12 +104,14 @@ async function runCycle(client: SanjiMcpClient): Promise<void> {
     log.detail(`Preview engine is not reachable at ${previewUrl}. Start it with pnpm dev.`);
   }
 
-  log.grok(`Generating and dispatching personalized WhatsApp pitch to ${lead.owner_name}...`);
+  log.grok(
+    `Generating ${lead.language} pitch for ${lead.owner_name} in ${lead.city}, ${lead.country}...`,
+  );
   const pitch = await craftWhatsAppPitch(lead);
   console.log("");
   console.log(pitch.message);
   console.log("");
-  log.detail(`Channel: WhatsApp ${lead.owner_phone} · ${pitch.source}`);
+  log.detail(`Channel: WhatsApp ${lead.owner_phone} · ${pitch.voice} · ${pitch.source}`);
   log.detail(pitch.whatsappUrl);
 
   await appendActivity({

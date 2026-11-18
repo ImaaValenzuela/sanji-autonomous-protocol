@@ -18,7 +18,9 @@ export interface SwapResult {
 export interface BountyRequest {
   slug: string;
   restaurantName: string;
-  neighborhood: string;
+  city: string;
+  country: string;
+  region: string;
   rewardUsdc: number;
   tierLabel: string;
   previewUrl: string;
@@ -158,12 +160,12 @@ export async function createCommunityBounty(input: BountyRequest): Promise<Bount
   const body = {
     title: `Connect domain and finalize menu JSON for ${input.restaurantName}`,
     description:
-      `Connect the custom domain for ${input.restaurantName} in ${input.neighborhood} and finalize the menu JSON ` +
+      `Connect the custom domain for ${input.restaurantName} in ${input.city}, ${input.country} (${input.region}) and finalize the menu JSON ` +
       `within 24 hours. Slug: ${input.slug}. Tier: ${input.tierLabel}. Preview: ${input.previewUrl}.`,
     rewardUsdc: input.rewardUsdc,
     asset: "USDC",
     deadlineHours: 24,
-    tags: ["sanji", "caba", input.slug],
+    tags: ["sanji", "hospitality", input.region.toLowerCase(), input.slug],
     agentId: readEnv("SANJI_AGENT_ID", "agent_sanji_caba_01"),
     slug: input.slug,
   };
@@ -209,14 +211,21 @@ export async function registerSanjiSkills(): Promise<{ skills: SkillResult[] }> 
   const preview = readEnv("PREVIEW_ENGINE_URL", "http://localhost:3000");
   const skills: SkillRegistration[] = [
     {
+      name: "sanji_global_lead_enricher",
+      description:
+        "Unlocks the next hot hospitality lead in NA, EU, or LATAM after an x402 SOL payment. Requires 150+ reviews, rating >= 4.3, and score >= 80.",
+      priceLamports: 500_000,
+      endpoint: `${gateway}/api/x402/leads/global`,
+    },
+    {
       name: "sanji_caba_lead_enricher",
-      description: "Unlocks the next enriched CABA restaurant owner lead after an x402 SOL payment.",
+      description: "Alias of sanji_global_lead_enricher. Same paywall, kept for existing x402 clients.",
       priceLamports: 500_000,
       endpoint: `${gateway}/api/x402/leads/caba`,
     },
     {
       name: "sanji_instant_landing",
-      description: "Publishes the GSAP restaurant landing and WhatsApp booking page for a CABA lead.",
+      description: "Publishes the GSAP restaurant landing and WhatsApp booking page for a hospitality lead.",
       endpoint: `${preview}/preview`,
     },
   ];

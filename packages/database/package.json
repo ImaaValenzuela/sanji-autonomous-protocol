@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared CABA restaurant leads: Supabase client, types, and zero-config demo store.",
+  "description": "Shared global hospitality leads: Supabase client, types, and zero-config demo store.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

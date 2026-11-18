@@ -69,7 +69,7 @@ export function CommandCenter({ initial }: { initial: CommandSnapshot }) {
   return (
     <main className="mx-auto grid min-h-screen max-w-6xl gap-8 px-4 py-8 md:px-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.8fr)] lg:py-10">
       <section>
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-ember">CABA · live</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-ember">NA · EU · LATAM</p>
         <h1 className="mt-3 font-display text-5xl leading-[0.92] tracking-[-0.03em] md:text-6xl">
           Sanji Protocol
           <span className="mt-2 block text-3xl italic text-cream/80 md:text-4xl">Live Command Center</span>
@@ -87,7 +87,7 @@ export function CommandCenter({ initial }: { initial: CommandSnapshot }) {
       <section className="flex min-h-[420px] flex-col border border-white/10 bg-soot lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
         <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ember">Terminal</p>
-          <p className="font-mono text-[11px] text-ash">sanji@caba</p>
+          <p className="font-mono text-[11px] text-ash">sanji@global</p>
         </header>
         <ol ref={logRef} className="flex-1 space-y-3 overflow-auto px-4 py-4 font-mono text-xs leading-relaxed">
           {snapshot.activity.length === 0 ? (
@@ -120,7 +120,7 @@ function LeadRow({ lead }: { lead: RestaurantLead }) {
           </span>
         </div>
         <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.16em] text-ash">
-          {lead.neighborhood} · {lead.google_rating.toFixed(1)}
+          {lead.city}, {lead.country} · {lead.region} · {lead.price_tier} · {lead.google_rating.toFixed(1)} · {lead.review_count} reviews · {lead.hot_lead_score}
         </p>
         <p className="mt-2 max-w-xl text-sm text-cream/80">{lead.pain_point}</p>
       </div>

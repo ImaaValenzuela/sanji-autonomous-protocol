@@ -9,7 +9,7 @@ export interface X402Challenge {
   recipient: string;
   amountLamports: number;
   memo: string;
-  skill: "sanji_caba_lead_enricher";
+  skill: "sanji_global_lead_enricher";
   message: string;
   reason?: string;
 }
@@ -30,10 +30,10 @@ export function buildX402Challenge(reason?: string): X402Challenge {
     network: "solana-mainnet",
     recipient: treasuryAddress(),
     amountLamports: X402_LAMPORTS,
-    memo: `SANJI_CABA_LEAD_${Date.now()}`,
-    skill: "sanji_caba_lead_enricher",
+    memo: `SANJI_GLOBAL_LEAD_${Date.now()}`,
+    skill: "sanji_global_lead_enricher",
     message:
-      "Payment Required: Use ClawPump x402_pay tool (0.0005 SOL) to unlock enriched CABA restaurant owner lead.",
+      "Payment Required: Use ClawPump x402_pay tool (0.0005 SOL) to unlock a global high-ticket hospitality lead.",
   };
   if (reason) challenge.reason = reason;
   return challenge;

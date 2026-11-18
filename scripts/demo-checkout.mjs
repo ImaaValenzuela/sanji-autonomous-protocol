@@ -1,4 +1,4 @@
-const slug = process.argv[2] ?? "brasa-hollywood";
+const slug = process.argv[2] ?? "brasa-palermo";
 const gateway = (process.env.X402_GATEWAY_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
 const response = await fetch(`${gateway}/api/webhooks/payment-confirmed`, {

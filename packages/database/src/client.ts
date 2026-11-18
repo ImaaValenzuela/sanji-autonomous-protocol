@@ -3,16 +3,24 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { matchesScout, MIN_GOOGLE_RATING, MIN_HOT_LEAD_SCORE, MIN_REVIEW_COUNT } from "./qualify.js";
 import { cloneSeed } from "./seed.js";
 import type {
   ActivityEvent,
   ActivityKind,
   CommandSnapshot,
+  LeadLanguage,
   LeadStatus,
   MenuHighlight,
   PaidStatus,
+  PriceTier,
+  Region,
   RestaurantLead,
+  ScoutFilter,
 } from "./types.js";
+
+const TABLE = "hospitality_leads";
+const SCHEMA_VERSION = 2;
 
 const LEAD_STATUSES: readonly LeadStatus[] = [
   "PENDING_OUTREACH",
@@ -25,6 +33,7 @@ const LEAD_STATUSES: readonly LeadStatus[] = [
 const ACTIVITY_LIMIT = 80;
 
 interface DemoFile {
+  schemaVersion: number;
   leads: RestaurantLead[];
   activity: ActivityEvent[];
 }
@@ -71,19 +80,25 @@ function storePath(): string {
 }
 
 function emptyDemo(): DemoFile {
-  return { leads: cloneSeed(), activity: [] };
+  return { schemaVersion: SCHEMA_VERSION, leads: cloneSeed(), activity: [] };
 }
 
 function readDemo(): DemoFile {
   const file = storePath();
   try {
     const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<DemoFile>;
-    if (!Array.isArray(parsed.leads) || parsed.leads.length === 0) {
+    if (
+      parsed.schemaVersion !== SCHEMA_VERSION ||
+      !Array.isArray(parsed.leads) ||
+      parsed.leads.length === 0
+    ) {
       const fresh = emptyDemo();
+      if (Array.isArray(parsed.activity)) fresh.activity = parsed.activity.map(normalizeActivity);
       writeDemo(fresh);
       return fresh;
     }
     return {
+      schemaVersion: SCHEMA_VERSION,
       leads: parsed.leads.map(normalizeLead),
       activity: Array.isArray(parsed.activity) ? parsed.activity.map(normalizeActivity) : [],
     };
@@ -122,19 +137,47 @@ function normalizeMenu(value: unknown): MenuHighlight[] {
   return items;
 }
 
+function asRegion(value: unknown): Region {
+  return value === "NA" || value === "EU" || value === "LATAM" ? value : "LATAM";
+}
+
+function asLanguage(value: unknown): LeadLanguage {
+  return value === "en" || value === "es" || value === "pt" || value === "fr" || value === "it"
+    ? value
+    : "en";
+}
+
+function asPriceTier(value: unknown): PriceTier {
+  return value === "$$" || value === "$$$" || value === "$$$$" ? value : "$$$";
+}
+
+function asBoundedScore(value: unknown): number {
+  const score = Number(value ?? 0);
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
 function normalizeLead(value: unknown): RestaurantLead {
   const record = (value ?? {}) as Record<string, unknown>;
   const signature = record.last_tx_signature;
+  const rating = Number(record.google_rating ?? 0);
+  const reviews = Number(record.review_count ?? 0);
   const lead: RestaurantLead = {
     id: String(record.id ?? randomUUID()),
     slug: String(record.slug ?? ""),
-    name: String(record.name ?? "Restaurante"),
-    neighborhood: String(record.neighborhood ?? "CABA"),
+    name: String(record.name ?? "Restaurant"),
+    city: String(record.city ?? ""),
+    country: String(record.country ?? ""),
+    region: asRegion(record.region),
+    language: asLanguage(record.language),
+    price_tier: asPriceTier(record.price_tier),
     owner_name: String(record.owner_name ?? ""),
     owner_phone: String(record.owner_phone ?? ""),
     ig_handle: String(record.ig_handle ?? ""),
     specialty: String(record.specialty ?? ""),
-    google_rating: Number(record.google_rating ?? 0),
+    google_rating: Number.isFinite(rating) ? rating : 0,
+    review_count: Number.isFinite(reviews) ? Math.max(0, Math.round(reviews)) : 0,
+    hot_lead_score: asBoundedScore(record.hot_lead_score),
     pain_point: String(record.pain_point ?? ""),
     hero_image_url: String(record.hero_image_url ?? ""),
     menu_highlights: normalizeMenu(record.menu_highlights),
@@ -174,14 +217,14 @@ let warnedSupabase = false;
 function warnSupabase(message: string): void {
   if (warnedSupabase) return;
   warnedSupabase = true;
-  console.warn(`[sanji/database] ${message} Falling back to the CABA demo store.`);
+  console.warn(`[sanji/database] ${message} Falling back to the global demo store.`);
 }
 
 async function listFromSupabase(): Promise<RestaurantLead[] | null> {
   const client = getSupabaseAdmin();
   if (!client) return null;
   const { data, error } = await client
-    .from("caba_restaurants")
+    .from(TABLE)
     .select("*")
     .order("name", { ascending: true });
   if (error) {
@@ -201,7 +244,7 @@ export async function getLeadBySlug(slug: string): Promise<RestaurantLead | null
   const client = getSupabaseAdmin();
   if (client) {
     const { data, error } = await client
-      .from("caba_restaurants")
+      .from(TABLE)
       .select("*")
       .eq("slug", slug)
       .maybeSingle();
@@ -216,20 +259,44 @@ export async function getLeadBySlug(slug: string): Promise<RestaurantLead | null
   return readDemo().leads.find((lead) => lead.slug === slug) ?? null;
 }
 
+function scoutFilter(input: {
+  region?: Region;
+  city?: string;
+  country?: string;
+  language?: LeadLanguage;
+}): ScoutFilter {
+  const filter: ScoutFilter = {};
+  if (input.region) filter.region = input.region;
+  if (input.city) filter.city = input.city;
+  if (input.country) filter.country = input.country;
+  if (input.language) filter.language = input.language;
+  return filter;
+}
+
 export async function takeNextPendingLead(input: {
-  neighborhood?: string;
   paymentSignature: string;
+  region?: Region;
+  city?: string;
+  country?: string;
+  language?: LeadLanguage;
 }): Promise<RestaurantLead | null> {
-  const neighborhood = input.neighborhood?.trim();
+  const filter = scoutFilter(input);
   const client = getSupabaseAdmin();
   if (client) {
     let query = client
-      .from("caba_restaurants")
+      .from(TABLE)
       .select("*")
       .eq("status", "PENDING_OUTREACH")
-      .order("name", { ascending: true })
+      .in("region", ["NA", "EU", "LATAM"])
+      .gte("review_count", MIN_REVIEW_COUNT)
+      .gte("google_rating", MIN_GOOGLE_RATING)
+      .gte("hot_lead_score", MIN_HOT_LEAD_SCORE)
+      .order("hot_lead_score", { ascending: false })
       .limit(1);
-    if (neighborhood) query = query.ilike("neighborhood", neighborhood);
+    if (filter.region) query = query.eq("region", filter.region);
+    if (filter.city) query = query.ilike("city", filter.city);
+    if (filter.country) query = query.ilike("country", filter.country);
+    if (filter.language) query = query.eq("language", filter.language);
     const { data, error } = await query;
     if (error) {
       warnSupabase(error.message);
@@ -237,8 +304,9 @@ export async function takeNextPendingLead(input: {
       const row = data?.[0];
       if (!row) return null;
       const current = normalizeLead(row);
+      if (!matchesScout(current, filter)) return null;
       const { data: updated, error: updateError } = await client
-        .from("caba_restaurants")
+        .from(TABLE)
         .update({
           status: "CONTACTED",
           last_tx_signature: input.paymentSignature,
@@ -258,19 +326,18 @@ export async function takeNextPendingLead(input: {
   }
 
   const state = readDemo();
-  const index = state.leads.findIndex((lead) => {
-    if (lead.status !== "PENDING_OUTREACH") return false;
-    if (!neighborhood) return true;
-    return lead.neighborhood.toLowerCase() === neighborhood.toLowerCase();
-  });
-  const current = index >= 0 ? state.leads[index] : undefined;
-  if (!current) return null;
+  const ranked = state.leads
+    .map((lead, index) => ({ lead, index }))
+    .filter(({ lead }) => matchesScout(lead, filter))
+    .sort((left, right) => right.lead.hot_lead_score - left.lead.hot_lead_score);
+  const pick = ranked[0];
+  if (!pick) return null;
   const next: RestaurantLead = {
-    ...current,
+    ...pick.lead,
     status: "CONTACTED",
     last_tx_signature: input.paymentSignature,
   };
-  state.leads[index] = next;
+  state.leads[pick.index] = next;
   writeDemo(state);
   return next;
 }
@@ -285,7 +352,7 @@ export async function markLeadPaid(input: {
     const patch: { status: PaidStatus; last_tx_signature?: string } = { status: input.status };
     if (input.paymentSignature) patch.last_tx_signature = input.paymentSignature;
     const { data, error } = await client
-      .from("caba_restaurants")
+      .from(TABLE)
       .update(patch)
       .eq("slug", input.slug)
       .select("*")

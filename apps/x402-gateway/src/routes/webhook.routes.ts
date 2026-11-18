@@ -89,7 +89,9 @@ webhookRouter.post(
     const bounty = await createCommunityBounty({
       slug: lead.slug,
       restaurantName: lead.name,
-      neighborhood: lead.neighborhood,
+      city: lead.city,
+      country: lead.country,
+      region: lead.region,
       rewardUsdc: tier.bountyUsdc,
       tierLabel: tier.label,
       previewUrl: `${previewBase}/preview/${lead.slug}`,

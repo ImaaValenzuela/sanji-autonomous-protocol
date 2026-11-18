@@ -1,6 +1,6 @@
 # Sanji Autonomous Protocol
 
-Agencia B2B autónoma de gastronomía para restaurantes de la Ciudad de Buenos Aires. El protocolo busca un local en CABA, cobra el acceso al lead con [x402](https://www.x402.org) en Solana, publica una landing editorial y, cuando el dueño paga, recompra `$SANJI` y abre un bounty para dejar el dominio y la carta en producción.
+Motor de hospitalidad high-ticket para restaurantes en **NA, EU y LATAM**. El protocolo busca un hot lead (150+ reseñas, rating ≥ 4.3, score ≥ 80), cobra el acceso con [x402](https://www.x402.org) en Solana, publica una landing editorial y, cuando el dueño paga, recompra `$SANJI` y abre un bounty para dejar el dominio y la carta en producción. Asia y África responden HTTP 400.
 
 Corre de punta a punta sin credenciales. Con un `.env` real, el mismo flujo firma en mainnet y habla con ClawPump y xAI.
 
@@ -9,7 +9,7 @@ Corre de punta a punta sin credenciales. Con un `.env` real, el mismo flujo firm
 ```text
 grokbot-worker                         x402-gateway                         preview-engine
       |                                      |                                      |
-      |  GET /api/x402/leads/caba            |                                      |
+      |  GET /api/x402/leads/global          |                                      |
       |------------------------------------->|                                      |
       |  402  500_000 lamports               |                                      |
       |<-------------------------------------|                                      |
@@ -29,10 +29,10 @@ grokbot-worker                         x402-gateway                         prev
 ```
 
 1. El worker pide el próximo local en `PENDING_OUTREACH`.
-2. El gateway responde **HTTP 402** con el desafío x402: tesorería, `500_000` lamports (`0.0005 SOL`), memo `SANJI_CABA_LEAD_<timestamp>` y skill `sanji_caba_lead_enricher`.
+2. El gateway responde **HTTP 402** con el desafío x402: tesorería, `500_000` lamports (`0.0005 SOL`), memo `SANJI_GLOBAL_LEAD_<timestamp>` y skill `sanji_global_lead_enricher`. `/api/x402/leads/caba` sigue vivo como alias. Un `region`, `country` o `city` de Asia o África corta antes del cobro con HTTP 400. El scout solo entrega leads con `region` en `NA | EU | LATAM`, `review_count >= 150`, `google_rating >= 4.3` y `hot_lead_score >= 80`.
 3. El worker paga con la tool MCP `x402_pay` de ClawPump. Si el MCP no responde, firma un `SystemProgram.transfer` nativo. Sin llave de agente, simula el pago y reintenta con el header `x-demo-simulation: true`.
 4. El gateway verifica la transacción con `connection.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 })`, marca el local como `CONTACTED` y devuelve el `RestaurantLead` completo.
-5. El worker abre `/preview/[slug]`, pide a Grok un WhatsApp en español rioplatense y deja el link `wa.me` en la terminal y en el command center.
+5. El worker abre `/preview/[slug]`, mira `language` y `country`, y pide a Grok un WhatsApp nativo: inglés de Miami o Austin, inglés de Londres, español de España, español de México o rioplatense. Deja el link `wa.me` en la terminal y en el command center.
 6. En la landing, **Activar Sanji Express** o **Activar Autonomous Core** hace `POST /api/webhooks/payment-confirmed`.
 7. El webhook aparta el 20 % de la venta para el buyback, pide a ClawPump el swap de SOL (`So11111111111111111111111111111111111111112`) a `SANJI_TOKEN_MINT`, firma la `VersionedTransaction` con la wallet del agente y publica un bounty en USDC para conectar el dominio y cerrar el JSON de la carta en 24 horas.
 
@@ -56,15 +56,15 @@ pnpm demo:checkout
 | --- | --- |
 | `pnpm dev` | Gateway en [http://localhost:4000](http://localhost:4000) y preview en [http://localhost:3000](http://localhost:3000). |
 | `pnpm worker` | Un ciclo de scout: 402, pago, unlock, chequeo de la landing y pitch de WhatsApp. `--loop` repite cada 20 segundos. |
-| `pnpm demo:checkout` | Checkout Express de `$290` para `brasa-hollywood`: buyback de `0.35 SOL` y bounty de `$40 USDC`. Otro slug: `pnpm demo:checkout -- crudo-chacarita`. |
+| `pnpm demo:checkout` | Checkout Express de `$290` para `brasa-palermo`: buyback de `0.35 SOL` y bounty de `$40 USDC`. Otro slug: `pnpm demo:checkout -- fuego-wynwood`. |
 
-Abrí el [command center](http://localhost:3000). Cada local tiene su preview, por ejemplo [Brasa Hollywood](http://localhost:3000/preview/brasa-hollywood). Los botones de la barra superior pegan al mismo webhook que `pnpm demo:checkout`.
+Abrí el [command center](http://localhost:3000). Cada local tiene su preview, por ejemplo [Brasa Palermo](http://localhost:3000/preview/brasa-palermo) o [Counter Soho](http://localhost:3000/preview/counter-soho). Los botones de la barra superior pegan al mismo webhook que `pnpm demo:checkout`.
 
 La terminal del worker imprime, en orden:
 
 ```text
 [MCP] Connecting to ClawPump OS...
-[SCOUT] Requesting CABA lead from /api/x402/leads/caba...
+[SCOUT] Requesting global hot lead from /api/x402/leads/global...
 [x402] Received HTTP 402 Payment Required (500,000 lamports). Executing x402_pay from Sanji Agent Wallet...
 [SOLANA] Payment confirmed on-chain (txSignature). Unlocking lead data...
 [PREVIEW] Verifying live GSAP landing page at /preview/[slug]...
@@ -73,7 +73,7 @@ La terminal del worker imprime, en orden:
 
 Sin llave de agente, la línea `[SOLANA]` dice que el pago fue de demo y el paywall se abre con `x-demo-simulation`. El pitch igual se genera: Grok si hay `XAI_GROK_API_KEY`, y si no, el texto de la casa con el dolor del local, la URL de la preview y las dos ofertas.
 
-`pnpm demo:reset` borra el store local. La próxima lectura vuelve a sembrar los cinco locales en `PENDING_OUTREACH`.
+`pnpm demo:reset` borra el store local. La próxima lectura vuelve a sembrar los seis hot leads en `PENDING_OUTREACH`. `pnpm demo:checkout` usa `brasa-palermo`.
 
 ## Ofertas
 
@@ -92,7 +92,7 @@ El recibo del webhook:
 {
   "buybackTxSignature": "simulated_…",
   "solscanUrl": "",
-  "bountyId": "local_brasa-hollywood_…",
+  "bountyId": "local_brasa-palermo_…",
   "updatedStatus": "PAID_EXPRESS",
   "mode": "simulated",
   "buybackSol": 0.35,
@@ -113,7 +113,7 @@ sanji-autonomous-protocol/
 │   ├── x402-gateway/                # Express. Paywall, leads, webhook, swap y bounty
 │   ├── grokbot-worker/              # Cliente MCP, pago x402 y SDR de Grok
 │   └── preview-engine/              # Next.js 15. Command center y /preview/[slug]
-├── packages/database/               # Tipos, cliente Supabase y seed de CABA
+├── packages/database/               # Tipos, cliente Supabase y seed global
 ├── scripts/demo-checkout.mjs
 ├── scripts/demo-reset.mjs
 ├── .env.example
@@ -137,11 +137,11 @@ sanji-autonomous-protocol/
 | Método | Ruta | Auth |
 | --- | --- | --- |
 | `GET` | `/health` | ninguna |
-| `GET` | `/api/x402/leads/caba` | `x-payment-signature` o `x-demo-simulation: true` |
+| `GET` | `/api/x402/leads/global` y el alias `/api/x402/leads/caba` | `x-payment-signature` o `x-demo-simulation: true`. Asia y África: 400, sin cobro. |
 | `POST` | `/api/x402/skills/register` | ninguna |
 | `POST` | `/api/webhooks/payment-confirmed` | `x-webhook-secret` cuando `WEBHOOK_SECRET` es real |
 
-`GET /api/x402/leads/caba?neighborhood=Palermo` filtra por barrio (case-insensitive en la demo). Si no queda nadie en `PENDING_OUTREACH`, responde 404.
+`GET /api/x402/leads/global?region=NA&city=Miami` filtra dentro del corte hot. `city=Wynwood` resuelve a Miami, `city=CDMX` a Mexico City y `neighborhood=Palermo` sigue aceptado como alias de Buenos Aires. Si no queda un lead que pase el corte, responde 404.
 
 El 402:
 
@@ -152,9 +152,9 @@ El 402:
   "network": "solana-mainnet",
   "recipient": "<SANJI_TREASURY_PUBLIC_KEY>",
   "amountLamports": 500000,
-  "memo": "SANJI_CABA_LEAD_<timestamp>",
-  "skill": "sanji_caba_lead_enricher",
-  "message": "Payment Required: Use ClawPump x402_pay tool (0.0005 SOL) to unlock enriched CABA restaurant owner lead."
+  "memo": "SANJI_GLOBAL_LEAD_<timestamp>",
+  "skill": "sanji_global_lead_enricher",
+  "message": "Payment Required: Use ClawPump x402_pay tool (0.0005 SOL) to unlock a global high-ticket hospitality lead."
 }
 ```
 
@@ -162,14 +162,14 @@ La verificación exige que la tesorería haya recibido al menos `500_000` lampor
 
 `POST /api/x402/skills/register` declara dos custom skills:
 
-- `sanji_caba_lead_enricher` — el paywall de leads.
+- `sanji_global_lead_enricher` — el paywall de hot leads. `sanji_caba_lead_enricher` queda como alias.
 - `sanji_instant_landing` — la landing en `/preview`.
 
 El cuerpo del checkout:
 
 ```json
 {
-  "slug": "brasa-hollywood",
+  "slug": "brasa-palermo",
   "tier": "SANJI_EXPRESS_290",
   "amountUsd": 290
 }
@@ -197,8 +197,8 @@ El SDR pega a `https://api.x.ai/v1/chat/completions` con `grok-3-latest`. El sys
 
 Next.js 15 App Router, Tailwind y GSAP. Fondo `#0A0A0A`, tipo `#F5F2EB`, acento `#FF5500`.
 
-- `/` es el command center. Lista los cinco locales, el estado y un log que hace poll a `/api/command` cada 2 segundos (pagos x402, buybacks y bounties).
-- `/preview/[slug]` lee el lead y renderiza la barra sticky **GENERATED BY SANJI AI AGENT (x402 VERIFIED)**, el sello del barrio, el rating de Google, el manifiesto, la carta interactiva y el CTA de reserva por WhatsApp. GSAP anima el ingreso. `prefers-reduced-motion` salta la timeline.
+- `/` es el command center. Lista los seis hot leads, el estado y un log que hace poll a `/api/command` cada 2 segundos (pagos x402, buybacks y bounties).
+- `/preview/[slug]` lee el lead y renderiza la barra sticky **GENERATED BY SANJI AI AGENT (x402 VERIFIED)**, el sello de la ciudad, el rating de Google, el manifiesto, la carta interactiva y el CTA de reserva por WhatsApp. GSAP anima el ingreso. `prefers-reduced-motion` salta la timeline.
 
 Los botones de la barra llaman al gateway en el browser (`X402_GATEWAY_URL`, default `http://localhost:4000`) con `x-demo-simulation: true`. CORS permite `x-payment-signature`, `x-demo-simulation` y `x-webhook-secret`.
 
@@ -208,23 +208,24 @@ Los botones de la barra llaman al gateway en el browser (`X402_GATEWAY_URL`, def
 
 `PENDING_OUTREACH` → `CONTACTED` → `PAID_EXPRESS` | `PAID_CORE` → `DEPLOYED`
 
-| Slug | Local | Barrio | Dueño |
-| --- | --- | --- | --- |
-| `brasa-hollywood` | Brasa Hollywood | Palermo Hollywood | Martín Herrera |
-| `crudo-chacarita` | Crudo Chacarita | Chacarita | Lucía Benedetti |
-| `vermu-colegiales` | Vermú Colegiales | Colegiales | Andrés Molina |
-| `oliva-belgrano` | Oliva Belgrano | Belgrano | Camila Ríos |
-| `taller-crespo` | Taller Crespo | Villa Crespo | Diego Sosa |
+| Slug | Local | Ciudad | Región | Idioma | Score |
+| --- | --- | --- | --- | --- | --- |
+| `counter-soho` | Counter Soho | London | EU | en | 97 |
+| `crudo-salamanca` | Crudo Salamanca | Madrid | EU | es | 95 |
+| `fuego-wynwood` | Fuego Wynwood | Miami | NA | en | 92 |
+| `brasa-palermo` | Brasa Palermo | Buenos Aires | LATAM | es | 90 |
+| `brasa-polanco` | Brasa Polanco | Mexico City | LATAM | es | 88 |
+| `ember-austin` | Ember Austin | Austin | NA | en | 86 |
 
 Sin Supabase, los tres procesos comparten `packages/database/data/runtime-leads.json` (gitignored). El primer read lo crea desde `src/seed.ts`. Ese archivo es el que hace que el worker, el gateway y el command center vean el mismo estado.
 
-Para usar Supabase, aplicá `packages/database/supabase/seed.sql` en el SQL editor (tabla `caba_restaurants` más los cinco `INSERT`) y completá `NEXT_PUBLIC_SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`. El cliente ignora los placeholders de `.env.example`. Si la query falla, vuelve al store local y lo avisa una sola vez.
+Para usar Supabase, aplicá `packages/database/supabase/seed.sql` en el SQL editor (tabla `hospitality_leads` más los seis `INSERT`) y completá `NEXT_PUBLIC_SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`. El cliente ignora los placeholders de `.env.example`. Si la query falla, vuelve al store local y lo avisa una sola vez. Un `runtime-leads.json` del esquema de CABA se reescribe solo: el archivo lleva `schemaVersion: 2`.
 
 ## Demo y mainnet
 
 | | Sin `.env` | Con `.env` real |
 | --- | --- | --- |
-| Leads | Store local, cinco locales | Tabla `caba_restaurants` |
+| Leads | Store local, seis hot leads | Tabla `hospitality_leads` |
 | Paywall | `x-demo-simulation: true` abre el lead | Firma verificada contra la tesorería |
 | Buyback | Recibo `simulated_…`, sin broadcast | Swap firmada y URL de Solscan |
 | Bounty | `local_<slug>_<ts>` si ClawPump responde 404 | Id devuelto por el SDK o el REST |

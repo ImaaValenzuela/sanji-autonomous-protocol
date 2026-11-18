@@ -6,25 +6,29 @@ import { MessageCircle, Star } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 const COPY: Record<string, { line: string; service: string }> = {
-  "brasa-hollywood": {
-    line: "Fuego lento sobre Honduras. El corte entra cuando la brasa dice, no cuando el reloj apura.",
-    service: "Cena de miércoles a domingo",
+  "fuego-wynwood": {
+    line: "Live fire in Wynwood. The book fills when the page takes the table, not when the DM does.",
+    service: "Dinner, Wednesday to Sunday",
   },
-  "crudo-chacarita": {
+  "crudo-salamanca": {
     line: "Pescado del día y vinos que todavía tienen pulso. La carta de ayer no sirve para la de hoy.",
     service: "Cena de martes a sábado",
   },
-  "vermu-colegiales": {
-    line: "Un vermú largo, una pasta corta y la barra de Colegiales a la hora en que el barrio vuelve a casa.",
-    service: "Mediodía y tarde, jueves a domingo",
+  "brasa-polanco": {
+    line: "Carbón de mercado en Polanco. La mesa de corporativo se confirma aquí, no en el chat del host.",
+    service: "Comida y cena, martes a sábado",
   },
-  "oliva-belgrano": {
-    line: "Mercado de la mañana, aceite de verdad y una mesa que se reserva, no que se espera en la vereda.",
-    service: "Almuerzo y cena, martes a sábado",
+  "counter-soho": {
+    line: "Five courses at the pass. What the floor lead used to recite now sits on the page.",
+    service: "One sitting, Thursday to Sunday",
   },
-  "taller-crespo": {
-    line: "Cinco pasos en la barra. Lo que no entra en el plato se explica acá, no de memoria en el salón.",
-    service: "Un turno de noche, jueves a domingo",
+  "ember-austin": {
+    line: "Oak fire and a patio that used to fill by accident. The book lives here now.",
+    service: "Dinner, Wednesday to Sunday",
+  },
+  "brasa-palermo": {
+    line: "Fuego lento en Palermo. El corte entra cuando la brasa dice, no cuando el reloj apura.",
+    service: "Cena de miércoles a domingo",
   },
 };
 
@@ -32,7 +36,7 @@ function copyFor(lead: RestaurantLead): { line: string; service: string } {
   return (
     COPY[lead.slug] ?? {
       line: `${lead.specialty.charAt(0).toUpperCase()}${lead.specialty.slice(1)}.`,
-      service: lead.neighborhood,
+      service: `${lead.city}, ${lead.country}`,
     }
   );
 }
@@ -102,7 +106,7 @@ export function RestaurantLandingGSAP({ lead }: { lead: RestaurantLead }) {
       <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:px-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] lg:items-end lg:py-20">
         <div>
           <p data-reveal="stamp" className="stamp font-mono text-[11px]">
-            {lead.neighborhood}
+            {lead.city}
           </p>
           <h1
             data-reveal="title"

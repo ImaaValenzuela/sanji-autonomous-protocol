@@ -2,7 +2,7 @@
   "name": "sanji-autonomous-protocol",
   "private": true,
   "version": "1.0.0",
-  "description": "Autonomous B2B gastronomy agency and SDR engine for CABA, on ClawPump and x402.",
+  "description": "Autonomous high-ticket hospitality engine for NA, EU, and LATAM, on ClawPump and x402.",
   "packageManager": "pnpm@10.34.7",
   "engines": {
     "node": ">=20"
