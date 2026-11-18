@@ -1,0 +1,23 @@
+{
+  "name": "sanji-autonomous-protocol",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Autonomous B2B gastronomy agency and SDR engine for CABA, on ClawPump and x402.",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "start": "turbo start",
+    "worker": "pnpm --filter @sanji/grokbot-worker demo",
+    "demo:checkout": "node scripts/demo-checkout.mjs",
+    "demo:reset": "node scripts/demo-reset.mjs"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3"
+  }
+}

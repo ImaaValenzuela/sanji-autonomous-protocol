@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+.turbo
+.env
+.env.local
+.env.*.local
+*.log
+packages/database/data/runtime-leads.json
+packages/database/data/*.tmp
+tsconfig.tsbuildinfo
